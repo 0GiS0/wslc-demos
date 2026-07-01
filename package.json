@@ -1,0 +1,21 @@
+{
+  "name": "wslc-spiderman-demo",
+  "version": "1.0.0",
+  "description": "Demo Node.js temática Marvel con la saga de Spiderman de Tom Holland en orden",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "spiderman",
+    "marvel",
+    "wslc"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

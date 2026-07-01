@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "name": "🌐 App (Node Server)",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "Spiderman demo listening on port (\\d+)",
+        "action": "startDebugging",
+        "name": "🌐 Launch Integrated Browser"
+      }
+    },
+    {
+      "name": "🌐 Launch Integrated Browser",
+      "request": "launch",
+      "type": "editor-browser",
+      "url": "http://127.0.0.1:3000",
+      "webRoot": "${workspaceFolder}/src/public"
+    }
+  ]
+}

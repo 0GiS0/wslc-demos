@@ -1,0 +1,8 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/typescript-node:4-24-trixie
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/wslc-demos:cached
+    ports:
+      - "3000:3000"
