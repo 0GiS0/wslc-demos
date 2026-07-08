@@ -20,6 +20,7 @@
 ---
 
 ## 📑 Tabla de Contenidos
+
 - [Características](#-características)
 - [Tecnologías](#️-tecnologías-utilizadas)
 - [Requisitos Previos](#-requisitos-previos)
@@ -31,6 +32,7 @@
 ---
 
 ## ✨ Características
+
 - Ejecución de contenedores Linux nativos en Windows con `wslc`
 - Build multi-stage optimizado para producción
 - Aplicación web Node.js con Express
@@ -41,6 +43,7 @@
 ---
 
 ## 🛠️ Tecnologías Utilizadas
+
 - **WSL Container (wslc)** - Motor de contenedores nativo de Windows
 - **Node.js 20 Alpine** - Runtime JavaScript
 - **Express.js** - Framework web minimalista
@@ -49,6 +52,7 @@
 ---
 
 ## 📋 Requisitos Previos
+
 - Windows 10/11 con WSL habilitado
 - WSL versión pre-release (para acceso a wslc)
 - PowerShell o Windows Terminal
@@ -58,32 +62,38 @@
 ## 🚀 Instalación
 
 ### Paso 1: Actualizar WSL a versión pre-release
+
 ```pwsh
 wsl --update --pre-release
 ```
 
 ### Paso 2: Verificar que wslc está disponible
+
 ```pwsh
 wslc --version
 ```
 
 > **Nota:** Si prefieres un alias más corto, puedes configurarlo así:
+>
 > ```pwsh
 > Set-Alias container wslc
 > ```
 
 ### Paso 3: Clonar el repositorio
+
 ```pwsh
 git clone https://github.com/0GiS0/wslc-demos.git
 cd wslc-demos
 ```
 
 ### Paso 4: Construir la imagen
+
 ```pwsh
 wslc build -t spiderman-demo:multistage .
 ```
 
 ### Paso 5: Ejecutar el contenedor
+
 ```pwsh
 wslc run -d -p 8080:3000 --name spiderman-demo spiderman-demo:multistage
 ```
@@ -93,12 +103,15 @@ wslc run -d -p 8080:3000 --name spiderman-demo spiderman-demo:multistage
 ## 💻 Uso
 
 ### Ejemplo básico con nginx
+
 Lanza un contenedor nginx en el puerto 8080:
+
 ```pwsh
 wslc run -p 8080:80 nginx
 ```
 
 ### Comandos útiles de wslc
+
 ```pwsh
 # Ver imágenes descargadas
 wslc images
@@ -117,11 +130,13 @@ wslc rm spiderman-demo
 ```
 
 ### Verificar que .dockerignore funciona
+
 ```pwsh
 wslc exec spiderman-demo sh -lc "test ! -f /app/README.md && echo 'OK: README no está en la imagen' || echo 'ERROR: README sí está en la imagen'"
 ```
 
 ### Comprobación HTTP
+
 ```pwsh
 Invoke-WebRequest -UseBasicParsing http://localhost:8080
 ```
@@ -129,6 +144,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:8080
 ---
 
 ## 📁 Estructura del Proyecto
+
 ```
 wslc-demos/
 ├── src/
