@@ -798,7 +798,7 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
             hasSelection: hasSelection,
           }),
         });
-        btn.textContent = "✓ Sent";
+        btn.textContent = "✓ Attached";
       } catch (err) {
         btn.textContent = "Failed";
       } finally {
@@ -885,9 +885,9 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
           '<div class="detail-ports">Ports: ' + portsHtml + '</div>' +
           '<div class="detail-tabs-bar">' +
             '<div class="detail-tabs">' + tabsHtml + '</div>' +
-            '<button class="send-chat-btn" data-send-chat title="Send your text selection (or the whole current tab) to the chat as context">📤 Send to chat</button>' +
+            '<button class="send-chat-btn" data-send-chat title="Attach your text selection (or the whole current tab) to the chat composer so you can add a message before sending">📎 Attach to chat</button>' +
           '</div>' +
-          '<p class="send-hint">Tip: select text in the panel below and click “Send to chat” to add just that selection as context. With nothing selected, the whole ' + escHtml(detailTab) + ' view is sent.</p>' +
+          '<p class="send-hint">Tip: select text in the panel below and click “Attach to chat” to attach just that selection to the composer. With nothing selected, the whole ' + escHtml(detailTab) + ' view is attached. It shows up as a pill so you can add your own message before sending.</p>' +
           '<div class="detail-body">' + body + '</div>' +
         '</div>';
     }
@@ -1288,13 +1288,28 @@ async function startServer(instanceId, uiState) {
                         text = text.slice(0, MAX) + "\n… (truncated)";
                     }
                 }
-                const label = hasSelection ? "the selected text" : `the full ${tab} view`;
-                const prompt = `From the WSLC Desktop canvas — here is ${label} for container "${container}" (${tab} tab). Please use it as context:\n\n\`\`\`\n${text}\n\`\`\``;
+                const scope = hasSelection ? "selection" : `full ${tab}`;
+                const title = `${container} · ${tab} (${scope})`;
                 try {
-                    if (!session || typeof session.send !== "function") {
-                        throw new Error("Session is not available");
+                    if (!session?.rpc?.extensions?.sendAttachmentsToMessage) {
+                        throw new Error("Attachment API is not available in this session");
                     }
-                    await session.send({ prompt });
+                    await session.rpc.extensions.sendAttachmentsToMessage({
+                        instanceId,
+                        attachments: [
+                            {
+                                type: "extension_context",
+                                title,
+                                payload: {
+                                    source: "wslc-desktop",
+                                    container,
+                                    tab,
+                                    scope: hasSelection ? "selection" : "full-view",
+                                    text,
+                                },
+                            },
+                        ],
+                    });
                     writeJson(res, 200, { ok: true });
                 } catch (error) {
                     writeJson(res, 500, { error: error instanceof Error ? error.message : String(error) });
