@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WSLC Desktop</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">🐳 WSLC Desktop</div>
+      <button class="sidebar-item active" data-section="containers" title="Containers" aria-label="Containers"><span>📦 Containers</span><span class="count" id="count-containers">0</span></button>
+      <button class="sidebar-item" data-section="images" title="Images" aria-label="Images"><span>🖼️ Images</span><span class="count" id="count-images">0</span></button>
+      <button class="sidebar-item" data-section="volumes" title="Volumes" aria-label="Volumes"><span>💾 Volumes</span><span class="count" id="count-volumes">0</span></button>
+      <button class="sidebar-item" data-section="networks" title="Networks" aria-label="Networks"><span>🕸️ Networks</span><span class="count" id="count-networks">0</span></button>
+    </aside>
+    <main class="main">
+      <h1>WSLC Desktop</h1>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input id="containerFilter" class="filter-input" type="search" placeholder="Filter containers by name or ID" value="" />
+          <span class="small muted">Instance: <code id="instanceId">-</code></span>
+        </div>
+      </div>
+      <div id="loading" class="loading"></div>
+      <div id="status" class="status muted">Loading...</div>
+      <div id="error"></div>
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script id="wslc-bootstrap" type="application/json">__WSLC_BOOTSTRAP__</script>
+  <script src="/ui/app.js"></script>
+</body>
+</html>
