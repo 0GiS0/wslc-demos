@@ -257,7 +257,7 @@ async function searchDockerHub(query) {
     });
 }
 
-function renderHtml(instanceId, initialContainerFilter = "") {
+function renderHtml(instanceId, initialContainerFilter = "", initialDetail = null) {
     return `<!doctype html>
 <html lang="en">
 <head>
@@ -569,6 +569,7 @@ function renderHtml(instanceId, initialContainerFilter = "") {
     const containerFilterEl = document.getElementById("containerFilter");
     const sidebar = document.querySelector(".sidebar");
     const initialContainerFilter = ${JSON.stringify(initialContainerFilter)};
+    const initialDetail = ${JSON.stringify(initialDetail)};
     let currentSection = "containers";
     let imagesSubView = "local";
     let currentState = null;
@@ -1151,10 +1152,36 @@ function renderHtml(instanceId, initialContainerFilter = "") {
       }
     });
 
-    loadState().catch((error) => {
-      errorEl.innerHTML = '<div class="error">' + escHtml(error.message) + "</div>";
-      statusEl.textContent = "Could not load WSLC state";
-    });
+    async function init() {
+      try {
+        await loadState();
+      } catch (error) {
+        errorEl.innerHTML = '<div class="error">' + escHtml(error.message) + "</div>";
+        statusEl.textContent = "Could not load WSLC state";
+        return;
+      }
+      if (initialDetail && initialDetail.container && currentState) {
+        const req = String(initialDetail.container).toLowerCase();
+        const match = currentState.containers.find((c) =>
+          String(c.id || "").toLowerCase() === req ||
+          String(c.name || "").toLowerCase() === req ||
+          String(c.id || "").toLowerCase().startsWith(req) ||
+          String(c.name || "").toLowerCase().includes(req)
+        );
+        if (match) {
+          currentSection = "containers";
+          for (const item of sidebar.querySelectorAll("button[data-section]")) {
+            item.classList.toggle("active", item.getAttribute("data-section") === "containers");
+          }
+          detailContainerId = match.id || match.name;
+          detailTab = ["logs", "inspect", "stats"].includes(initialDetail.tab) ? initialDetail.tab : "logs";
+          renderCurrentSection();
+          loadDetailTab(detailTab);
+        }
+      }
+    }
+
+    init();
 
     setInterval(() => {
       if (!busy) {
@@ -1178,7 +1205,7 @@ async function startServer(instanceId, uiState) {
             const url = new URL(req.url ?? "/", "http://127.0.0.1");
             if (req.method === "GET" && url.pathname === "/") {
                 res.setHeader("Content-Type", "text/html; charset=utf-8");
-                res.end(renderHtml(instanceId, uiState.initialContainerFilter ?? ""));
+                res.end(renderHtml(instanceId, uiState.initialContainerFilter ?? "", uiState.initialDetail ?? null));
                 return;
             }
             if (req.method === "GET" && url.pathname === "/api/state") {
@@ -1323,6 +1350,8 @@ const session = await joinSession({
                 properties: {
                     containerFilter: { type: "string", minLength: 1 },
                     container: { type: "string", minLength: 1 },
+                    detailContainer: { type: "string", minLength: 1 },
+                    detailTab: { type: "string", enum: ["logs", "inspect", "stats"] },
                 },
             },
             actions: [
@@ -1401,15 +1430,22 @@ const session = await joinSession({
                 },
             ],
             open: async (ctx) => {
-                const requestedFilter = String(ctx.input?.containerFilter ?? ctx.input?.container ?? "").trim();
+                const detailContainer = String(ctx.input?.detailContainer ?? "").trim();
+                const detailTab = String(ctx.input?.detailTab ?? "").trim();
+                const requestedFilter = String(ctx.input?.containerFilter ?? ctx.input?.container ?? detailContainer ?? "").trim();
+                const requestedDetail = detailContainer
+                    ? { container: detailContainer, tab: detailTab || "logs" }
+                    : null;
                 let entry = servers.get(ctx.instanceId);
                 if (!entry) {
                     entry = await startServer(ctx.instanceId, {
                         initialContainerFilter: requestedFilter,
+                        initialDetail: requestedDetail,
                     });
                     servers.set(ctx.instanceId, entry);
                 } else {
                     entry.uiState.initialContainerFilter = requestedFilter;
+                    entry.uiState.initialDetail = requestedDetail;
                 }
                 const state = await getWslcState();
                 return {
