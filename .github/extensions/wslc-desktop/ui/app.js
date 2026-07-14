@@ -475,10 +475,24 @@
       document.getElementById("count-networks").textContent = String(state.networks.length);
     }
 
+    function formatRelativeElapsed(isoDate) {
+      const ts = new Date(isoDate).getTime();
+      if (!Number.isFinite(ts)) return "just now";
+      const totalSeconds = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const parts = [];
+      if (hours > 0) parts.push(hours + "h");
+      if (minutes > 0 || hours > 0) parts.push(minutes + "m");
+      parts.push(seconds + "s");
+      return parts.join(" ");
+    }
+
     function applyState(state) {
       currentState = state;
-      const updated = new Date(state.updatedAt).toLocaleString();
-      statusEl.textContent = "Running containers: " + state.summary.running + " / " + state.summary.total + " · Updated " + updated;
+      const updated = formatRelativeElapsed(state.updatedAt);
+      statusEl.textContent = "Running containers: " + state.summary.running + " / " + state.summary.total + " · Updated " + updated + " ago";
       errorEl.innerHTML = state.available ? "" : '<div class="error">' + escHtml(state.error || "wslc unavailable") + "</div>";
       updateSidebarCounts(state);
       renderCurrentSection();
