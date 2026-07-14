@@ -521,6 +521,16 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
     }
     .detail-tab:hover { color: var(--text-color-default, #1f2328); }
     .detail-tab.active { color: var(--text-color-default, #1f2328); border-bottom-color: var(--true-color-blue, #0969da); font-weight: 600; }
+    .detail-tabs-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border-color-default, #d0d7de); }
+    .detail-tabs-bar .detail-tabs { border-bottom: none; }
+    .send-chat-btn {
+      display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px;
+      background: var(--true-color-blue, #0969da); color: #fff; border: none; border-radius: 6px;
+      padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; flex-shrink: 0;
+    }
+    .send-chat-btn:hover { filter: brightness(1.08); }
+    .send-chat-btn:disabled { opacity: 0.7; cursor: default; }
+    .send-hint { font-size: 12px; color: var(--text-color-muted, #656d76); margin: 2px 0 0; }
     .detail-body { min-height: 120px; }
     .detail-pre {
       background: var(--background-color-muted, #f6f8fa); border: 1px solid var(--border-color-default, #d0d7de);
@@ -757,6 +767,45 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
       }
     }
 
+    async function sendCurrentToChat(btn) {
+      if (!detailContainerId) return;
+      const c = findDetailContainer();
+      const selection = String(window.getSelection ? window.getSelection() : "").trim();
+      const hasSelection = selection.length > 0;
+      let text = selection;
+      if (!text) {
+        if (detailTab === "stats") {
+          text = detailData.stats && !detailData.stats.__error ? JSON.stringify(detailData.stats, null, 2) : "";
+        } else {
+          text = detailData[detailTab] || "";
+        }
+      }
+      if (!text.trim()) {
+        errorEl.innerHTML = '<div class="error">Nothing to send yet — the view is still loading or empty.</div>';
+        return;
+      }
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      try {
+        await fetch("/api/send-to-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            container: (c && (c.name || c.id)) || detailContainerId,
+            tab: detailTab,
+            text: text,
+            hasSelection: hasSelection,
+          }),
+        });
+        btn.textContent = "✓ Sent";
+      } catch (err) {
+        btn.textContent = "Failed";
+      } finally {
+        setTimeout(() => { btn.disabled = false; btn.textContent = original; }, 1600);
+      }
+    }
+
     function renderContainerDetail() {
       const c = findDetailContainer();
       if (!c) {
@@ -834,7 +883,11 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
             '</div>' +
           '</div>' +
           '<div class="detail-ports">Ports: ' + portsHtml + '</div>' +
-          '<div class="detail-tabs">' + tabsHtml + '</div>' +
+          '<div class="detail-tabs-bar">' +
+            '<div class="detail-tabs">' + tabsHtml + '</div>' +
+            '<button class="send-chat-btn" data-send-chat title="Send your text selection (or the whole current tab) to the chat as context">📤 Send to chat</button>' +
+          '</div>' +
+          '<p class="send-hint">Tip: select text in the panel below and click “Send to chat” to add just that selection as context. With nothing selected, the whole ' + escHtml(detailTab) + ' view is sent.</p>' +
           '<div class="detail-body">' + body + '</div>' +
         '</div>';
     }
@@ -1048,6 +1101,11 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
         }
         return;
       }
+      const sendChatBtn = event.target.closest("button[data-send-chat]");
+      if (sendChatBtn) {
+        sendCurrentToChat(sendChatBtn);
+        return;
+      }
       const copyBtn = event.target.closest("button[data-copy-id]");
       if (copyBtn) {
         const id = copyBtn.getAttribute("data-copy-id");
@@ -1162,12 +1220,11 @@ function renderHtml(instanceId, initialContainerFilter = "", initialDetail = nul
       }
       if (initialDetail && initialDetail.container && currentState) {
         const req = String(initialDetail.container).toLowerCase();
-        const match = currentState.containers.find((c) =>
-          String(c.id || "").toLowerCase() === req ||
-          String(c.name || "").toLowerCase() === req ||
-          String(c.id || "").toLowerCase().startsWith(req) ||
-          String(c.name || "").toLowerCase().includes(req)
-        );
+        const list = currentState.containers;
+        const match =
+          list.find((c) => String(c.name || "").toLowerCase() === req || String(c.id || "").toLowerCase() === req) ||
+          list.find((c) => String(c.id || "").toLowerCase().startsWith(req)) ||
+          list.find((c) => String(c.name || "").toLowerCase().includes(req));
         if (match) {
           currentSection = "containers";
           for (const item of sidebar.querySelectorAll("button[data-section]")) {
@@ -1210,6 +1267,38 @@ async function startServer(instanceId, uiState) {
             }
             if (req.method === "GET" && url.pathname === "/api/state") {
                 writeJson(res, 200, await getWslcState());
+                return;
+            }
+            if (req.method === "POST" && url.pathname === "/api/send-to-chat") {
+                const body = await readJsonBody(req);
+                const container = String(body.container ?? "").trim();
+                const tab = String(body.tab ?? "").trim() || "logs";
+                const rawText = String(body.text ?? "");
+                const hasSelection = Boolean(body.hasSelection);
+                if (!rawText.trim()) {
+                    writeJson(res, 400, { error: "Nothing to send" });
+                    return;
+                }
+                const MAX = 12000;
+                let text = rawText;
+                if (text.length > MAX) {
+                    if (!hasSelection && tab === "logs") {
+                        text = "… (truncated)\n" + text.slice(text.length - MAX);
+                    } else {
+                        text = text.slice(0, MAX) + "\n… (truncated)";
+                    }
+                }
+                const label = hasSelection ? "the selected text" : `the full ${tab} view`;
+                const prompt = `From the WSLC Desktop canvas — here is ${label} for container "${container}" (${tab} tab). Please use it as context:\n\n\`\`\`\n${text}\n\`\`\``;
+                try {
+                    if (!session || typeof session.send !== "function") {
+                        throw new Error("Session is not available");
+                    }
+                    await session.send({ prompt });
+                    writeJson(res, 200, { ok: true });
+                } catch (error) {
+                    writeJson(res, 500, { error: error instanceof Error ? error.message : String(error) });
+                }
                 return;
             }
             if (req.method === "GET" && url.pathname === "/api/dockerhub/search") {
